@@ -9,7 +9,7 @@
 #include "store-api.hh"
 #include "shared.hh"
 #include "flake/flake.hh"
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 #include "url.hh"
 #include "registry.hh"
 

@@ -2,7 +2,7 @@
 #include "lockfile.hh"
 #include "primops.hh"
 #include "eval-inline.hh"
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 #include "store-api.hh"
 #include "fetchers.hh"
 #include "finally.hh"

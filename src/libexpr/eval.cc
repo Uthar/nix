@@ -8,7 +8,7 @@
 #include "filetransfer.hh"
 #include "json.hh"
 #include "function-trace.hh"
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 
 #include <algorithm>
 #include <chrono>

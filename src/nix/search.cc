@@ -7,7 +7,7 @@
 #include "common-args.hh"
 #include "json.hh"
 #include "shared.hh"
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 #include "attr-path.hh"
 
 #include <regex>

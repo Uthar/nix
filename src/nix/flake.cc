@@ -11,7 +11,7 @@
 #include "fetchers.hh"
 #include "registry.hh"
 #include "json.hh"
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 
 #include <nlohmann/json.hpp>
 #include <queue>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "eval.hh"
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 
 #include <string>
 #include <map>

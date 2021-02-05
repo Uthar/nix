@@ -1,7 +1,7 @@
 #include "installables.hh"
 #include "store-api.hh"
 #include "eval-inline.hh"
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 #include "names.hh"
 
 namespace nix {
