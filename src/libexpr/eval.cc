@@ -434,6 +434,9 @@ EvalState::EvalState(const Strings & _searchPath, ref<Store> store)
 
 EvalState::~EvalState()
 {
+    for (auto [_, cache] : evalCache) {
+        cache->commit();
+    }
 }
 
 
@@ -1152,7 +1155,6 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
             return std::nullopt;
         dest = resultingCursor->forceValue();
         dest.setCache(resultingCursor);
-        resultingCursor->root->commit();
         return std::nullopt;
     }
 
