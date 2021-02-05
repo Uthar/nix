@@ -331,6 +331,8 @@ public:
 
     void realiseContext(const PathSet & context);
 
+    unsigned long nrCacheHits = 0;
+    unsigned long nrCacheMisses = 0;
 private:
 
     unsigned long nrEnvs = 0;

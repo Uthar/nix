@@ -1138,6 +1138,7 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
                 [&](eval_cache::misc_t) {},
                 [&](eval_cache::failed_t) {},
                 [&](eval_cache::string_t s) {
+                    nrCacheHits++;
                     PathSet context;
                     for (auto & [pathName, outputName] : s.second) {
                         context.insert("!" + outputName + "!" + pathName);
@@ -1146,6 +1147,7 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
                     hasCachedRes = true;
                 },
                 [&](bool b) {
+                    nrCacheHits++;
                     dest.mkBool(b);
                     hasCachedRes = true;
                 },
@@ -2083,6 +2085,8 @@ void EvalState::printStats()
         topObj.attr("nrLookups", nrLookups);
         topObj.attr("nrPrimOpCalls", nrPrimOpCalls);
         topObj.attr("nrFunctionCalls", nrFunctionCalls);
+        topObj.attr("nrCacheMisses", nrCacheMisses);
+        topObj.attr("nrCacheHits", nrCacheHits);
 #if HAVE_BOEHMGC
         {
             auto gc = topObj.object("gc");
