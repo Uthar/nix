@@ -54,20 +54,14 @@ public:
 };
 
 enum AttrType {
-    Placeholder = 0,
+    Unknown = 0,
     Attrs = 1,
     String = 2,
-    Missing = 3,
-    Misc = 4,
-    Failed = 5,
-    Bool = 6,
+    Bool = 3,
 };
 
-struct placeholder_t {};
-struct missing_t {};
-struct misc_t {};
-struct failed_t {};
 struct attributeSet_t {};
+struct unknown_t {};
 typedef uint64_t AttrId;
 
 typedef std::pair<AttrId, Symbol> AttrKey;
@@ -76,10 +70,7 @@ typedef std::pair<std::string, std::vector<std::pair<Path, std::string>>> string
 typedef std::variant<
     attributeSet_t,
     string_t,
-    placeholder_t,
-    missing_t,
-    misc_t,
-    failed_t,
+    unknown_t,
     bool
 > AttrValue;
 

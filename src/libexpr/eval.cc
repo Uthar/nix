@@ -1127,8 +1127,6 @@ tree_cache::AttrValue cachedValueFor(const Value& v)
     tree_cache::AttrValue valueToCache;
     switch (v.type()) {
         case nThunk:
-            valueToCache = tree_cache::placeholder_t{};
-            break;
         case nInt:
         case nFloat:
         case nNull:
@@ -1136,19 +1134,19 @@ tree_cache::AttrValue cachedValueFor(const Value& v)
         case nFunction:
         case nExternal:
             // XXX: At least some of these should be cached
-            valueToCache = tree_cache::misc_t{};
+            valueToCache = tree_cache::unknown_t{};
             break;
         case nBool:
             valueToCache = v.boolean;
             break;
         case nString:
-            valueToCache = std::pair<std::string, std::vector<std::pair<Path, std::string>>>{
+            valueToCache = tree_cache::string_t{
                 v.string.s,
                 v.getContext()
             };
             break;
         case nPath:
-            valueToCache = std::pair<std::string, std::vector<std::pair<Path, std::string>>>{
+            valueToCache = tree_cache::string_t{
                 v.path,
                 {}
             };
@@ -1171,10 +1169,7 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
         auto cachedValue = resultingCursor->getCachedValue();
         std::visit(overloaded {
             [&](tree_cache::attributeSet_t) {},
-            [&](tree_cache::placeholder_t) {},
-            [&](tree_cache::missing_t) {},
-            [&](tree_cache::misc_t) {},
-            [&](tree_cache::failed_t) {},
+            [&](tree_cache::unknown_t) {},
             [&](tree_cache::string_t s) {
             PathSet context;
             for (auto & [pathName, outputName] : s.second) {
@@ -1187,7 +1182,7 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
             dest.mkBool(b);
             hasCachedRes = true;
             },
-            },
+        },
         cachedValue);
 
         if(hasCachedRes) {

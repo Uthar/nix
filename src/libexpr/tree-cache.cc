@@ -121,26 +121,6 @@ struct AttrDb
         return setValue(key, b);
     }
 
-    AttrId setPlaceholder(AttrKey key)
-    {
-        return setValue(key, placeholder_t{});
-    }
-
-    AttrId setMissing(AttrKey key)
-    {
-        return setValue(key, missing_t{});
-    }
-
-    AttrId setMisc(AttrKey key)
-    {
-        return setValue(key, misc_t{});
-    }
-
-    AttrId setFailed(AttrKey key)
-    {
-        return setValue(key, failed_t{});
-    }
-
     std::optional<AttrId> getId(const AttrKey& key)
     {
         auto state(_state->lock());
@@ -172,8 +152,6 @@ struct AttrDb
         auto type = (AttrType) queryAttribute.getInt(1);
 
         switch (type) {
-            case AttrType::Placeholder:
-                return {{rowId, placeholder_t()}};
             case AttrType::Attrs: {
                 return {{rowId, attributeSet_t()}};
             }
@@ -186,12 +164,8 @@ struct AttrDb
             }
             case AttrType::Bool:
                 return {{rowId, queryAttribute.getInt(2) != 0}};
-            case AttrType::Missing:
-                return {{rowId, missing_t()}};
-            case AttrType::Misc:
-                return {{rowId, misc_t()}};
-            case AttrType::Failed:
-                return {{rowId, failed_t()}};
+            case AttrType::Unknown:
+                return {{rowId, unknown_t{}}};
             default:
                 throw Error("unexpected type in evaluation cache");
         }
@@ -317,10 +291,6 @@ const RawValue RawValue::fromVariant(const AttrValue & value)
     RawValue res;
     std::visit(overloaded{
       [&](attributeSet_t x) { res.type = AttrType::Attrs; },
-      [&](placeholder_t x) { res.type = AttrType::Placeholder; },
-      [&](missing_t x) { res.type = AttrType::Missing; },
-      [&](misc_t x) { res.type = AttrType::Misc;  },
-      [&](failed_t x) { res.type = AttrType::Failed;  },
       [&](string_t x) {
         res.type = AttrType::String;
         res.value = x.first;
@@ -329,7 +299,8 @@ const RawValue RawValue::fromVariant(const AttrValue & value)
       [&](bool x) {
         res.type = AttrType::Bool;
         res.value = x ? "0" : "1";
-      }
+      },
+      [&](unknown_t x) { res.type = AttrType::Unknown; }
     }, value);
     return res;
 }
