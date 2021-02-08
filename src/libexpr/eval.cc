@@ -1176,7 +1176,6 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
             [&](tree_cache::misc_t) {},
             [&](tree_cache::failed_t) {},
             [&](tree_cache::string_t s) {
-            nrCacheHits++;
             PathSet context;
             for (auto & [pathName, outputName] : s.second) {
             context.insert("!" + outputName + "!" + pathName);
@@ -1185,15 +1184,22 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
             hasCachedRes = true;
             },
             [&](bool b) {
-            nrCacheHits++;
             dest.mkBool(b);
             hasCachedRes = true;
             },
             },
         cachedValue);
 
-        if(hasCachedRes)
+        if(hasCachedRes) {
+            nrCacheHits++;
             return std::nullopt;
+        }
+        nrUncacheable++;
+    } else {
+        if (evalCache)
+            nrCacheMisses++;
+        else
+            nrUncached++;
     }
 
     const Pos * pos2 = &pos;
@@ -2110,8 +2116,13 @@ void EvalState::printStats()
         topObj.attr("nrLookups", nrLookups);
         topObj.attr("nrPrimOpCalls", nrPrimOpCalls);
         topObj.attr("nrFunctionCalls", nrFunctionCalls);
-        topObj.attr("nrCacheMisses", nrCacheMisses);
-        topObj.attr("nrCacheHits", nrCacheHits);
+        {
+            auto cache = topObj.object("cache");
+            cache.attr("nrCacheMisses", nrCacheMisses);
+            cache.attr("nrCacheHits", nrCacheHits);
+            cache.attr("nrUncacheable", nrUncacheable);
+            cache.attr("nrUncached", nrUncached);
+        }
 #if HAVE_BOEHMGC
         {
             auto gc = topObj.object("gc");

@@ -336,6 +336,8 @@ public:
 
     unsigned long nrCacheHits = 0;
     unsigned long nrCacheMisses = 0;
+    unsigned long nrUncacheable = 0;
+    unsigned long nrUncached = 0;
 private:
 
     unsigned long nrEnvs = 0;

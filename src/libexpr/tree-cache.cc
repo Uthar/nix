@@ -153,8 +153,11 @@ struct AttrDb
 
     AttrId setIfAbsent(const AttrKey& key, const AttrValue& value)
     {
-        if (auto existingId = getId(key))
+        if (auto existingId = getId(key)) {
             return *existingId;
+            debug("cache: spurious write for the attribute %s", key.second);
+        }
+        debug("cache: miss for the attribute %s", key.second);
         return setValue(key, value);
     }
 

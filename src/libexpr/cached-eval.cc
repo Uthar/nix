@@ -400,7 +400,6 @@ std::optional<AttrValue> AttrCursor::getCachedValue()
 
 Value & AttrCursor::forceValue()
 {
-    root->state.nrCacheMisses++;
     debug("evaluating uncached attribute %s", getAttrPathStr());
 
     auto & v = getValue();
