@@ -1127,8 +1127,6 @@ tree_cache::AttrValue cachedValueFor(const Value& v)
     tree_cache::AttrValue valueToCache;
     switch (v.type()) {
         case nThunk:
-        case nInt:
-        case nFloat:
         case nNull:
         case nList:
         case nFunction:
@@ -1154,7 +1152,13 @@ tree_cache::AttrValue cachedValueFor(const Value& v)
         case nAttrs:
             valueToCache = tree_cache::attributeSet_t{};
             break;
-        };
+        case nInt:
+            valueToCache = v.integer;
+            break;
+        case nFloat:
+            valueToCache = v.fpoint;
+            break;
+    };
     return valueToCache;
 }
 

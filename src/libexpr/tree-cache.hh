@@ -58,6 +58,8 @@ enum AttrType {
     Attrs = 1,
     String = 2,
     Bool = 3,
+    Int = 4,
+    Double = 5,
 };
 
 struct attributeSet_t {};
@@ -71,7 +73,9 @@ typedef std::variant<
     attributeSet_t,
     string_t,
     unknown_t,
-    bool
+    bool,
+    int64_t,
+    double
 > AttrValue;
 
 struct RawValue {

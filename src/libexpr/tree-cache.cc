@@ -164,6 +164,10 @@ struct AttrDb
             }
             case AttrType::Bool:
                 return {{rowId, queryAttribute.getInt(2) != 0}};
+            case AttrType::Int:
+                return {{rowId, queryAttribute.getInt(2)}};
+            case AttrType::Double:
+                return {{rowId, queryAttribute.getInt(2)}};
             case AttrType::Unknown:
                 return {{rowId, unknown_t{}}};
             default:
@@ -299,6 +303,14 @@ const RawValue RawValue::fromVariant(const AttrValue & value)
       [&](bool x) {
         res.type = AttrType::Bool;
         res.value = x ? "0" : "1";
+      },
+      [&](int64_t x) {
+        res.type = AttrType::Int;
+        res.value = std::to_string(x);
+      },
+      [&](double x) {
+        res.type = AttrType::Double;
+        res.value = std::to_string(x);
       },
       [&](unknown_t x) { res.type = AttrType::Unknown; }
     }, value);
