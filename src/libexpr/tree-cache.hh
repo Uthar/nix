@@ -45,7 +45,7 @@ public:
 
     static std::shared_ptr<Cache> tryCreate(const Hash & useCache, SymbolTable & symbols);
 
-    std::shared_ptr<Cursor> getRoot();
+    Cursor * getRoot();
 
     /**
      * Flush the cache to disk
@@ -106,8 +106,10 @@ class Cursor : public std::enable_shared_from_this<Cursor>
      */
     ref<Cache> root;
 
-    typedef std::optional<std::pair<std::shared_ptr<Cursor>, Symbol>> Parent;
-    Parent parent;
+    typedef std::optional<std::pair<Cursor&, Symbol>> Parent;
+
+    std::optional<AttrId> parentId;
+    Symbol label;
 
     std::pair<AttrId, AttrValue> cachedValue;
 
@@ -117,19 +119,22 @@ class Cursor : public std::enable_shared_from_this<Cursor>
     AttrKey getKey();
 
 public:
+
+    using Ref = Cursor*;
+
     // Create a new cache entry
-    Cursor(ref<Cache> root, Parent parent, const AttrValue&);
+    Cursor(ref<Cache> root, const Parent & parent, const AttrValue&);
     // Build a cursor from an existing cache entry
-    Cursor(ref<Cache> root, Parent parent, const AttrId& id, const AttrValue&);
+    Cursor(ref<Cache> root, const Parent & parent, const AttrId& id, const AttrValue&);
 
     AttrValue getCachedValue();
 
     void setValue(const AttrValue & v);
 
-    std::shared_ptr<Cursor> addChild(const Symbol & attrPath, AttrValue & v);
+    Ref addChild(const Symbol & attrPath, AttrValue & v);
 
-    std::shared_ptr<Cursor> findAlongAttrPath(const std::vector<Symbol> & attrPath);
-    std::shared_ptr<Cursor> maybeGetAttr(const Symbol & attrPath);
+    Ref findAlongAttrPath(const std::vector<Symbol> & attrPath);
+    Ref maybeGetAttr(const Symbol & attrPath);
 };
 
 }

@@ -1162,7 +1162,7 @@ tree_cache::AttrValue cachedValueFor(const Value& v)
 
 EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const std::vector<Symbol> & selector, const Pos & pos, Value & dest)
 {
-    std::shared_ptr<tree_cache::Cursor> resultingCursor;
+    tree_cache::Cursor::Ref resultingCursor = nullptr;
     auto evalCache = attrs.getCache();
     if (evalCache)
         resultingCursor = evalCache->findAlongAttrPath(selector);
@@ -1210,7 +1210,7 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
                     .attrName = name,
                     .illTypedValue = currentValue,
             }
-            };
+        };
         if ((j = currentValue->attrs->find(name)) == currentValue->attrs->end())
             return {AttrAccessError { pos2, name }};
         currentValue = j->value;
@@ -1818,12 +1818,12 @@ std::vector<std::pair<Path, std::string>> Value::getContext() const
     return res;
 }
 
-void Value::setCache(std::shared_ptr<tree_cache::Cursor> cache)
+void Value::setCache(tree_cache::Cursor::Ref cache)
 {
     evalCache = cache;
 }
 
-std::shared_ptr<tree_cache::Cursor> Value::getCache() const
+tree_cache::Cursor::Ref Value::getCache() const
 {
     return evalCache;
 }

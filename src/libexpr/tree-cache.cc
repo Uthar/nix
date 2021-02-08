@@ -226,31 +226,32 @@ void Cache::commit()
     }
 }
 
-std::shared_ptr<Cursor> Cache::getRoot()
+Cursor::Ref Cache::getRoot()
 {
-    auto sharedThis = ref(shared_from_this());
-    auto rootValue = attributeSet_t{};
-    return std::make_shared<Cursor>(sharedThis, std::nullopt, rootValue);
+    return new Cursor(ref(shared_from_this()), std::nullopt, attributeSet_t{});
 }
 
 Cursor::Cursor(
     ref<Cache> root,
-    Parent parent,
+    const Parent & parent,
     const AttrValue& value
     )
-    : root(root), parent(parent)
+    : root(root)
+    , parentId(parent ? std::optional{parent->first.cachedValue.first} : std::nullopt)
+    , label(parent ? parent->second : root->rootSymbol)
     , cachedValue({root->db->setIfAbsent(getKey(), value), value})
 {
-    debug("Caching the attribute %s", getKey().second);
 }
 
 Cursor::Cursor(
     ref<Cache> root,
-    Parent parent,
-    const AttrId& id,
-    const AttrValue& value
+    const Parent & parent,
+    const AttrId & id,
+    const AttrValue & value
     )
-    : root(root), parent(parent)
+    : root(root)
+    , parentId(parent ? std::optional{parent->first.cachedValue.first} : std::nullopt)
+    , label(parent ? parent->second : root->rootSymbol)
     , cachedValue({id, value})
 {
 }
@@ -258,9 +259,9 @@ Cursor::Cursor(
 
 AttrKey Cursor::getKey()
 {
-    if (!parent)
+    if (!parentId)
         return {0, root->rootSymbol};
-    return {parent->first->cachedValue.first, parent->second};
+    return {*parentId, label};
 }
 
 AttrValue Cursor::getCachedValue()
@@ -273,10 +274,10 @@ void Cursor::setValue(const AttrValue & v)
     cachedValue = {root->db->setValue(getKey(), v), v};
 }
 
-std::shared_ptr<Cursor> Cursor::addChild(const Symbol & attrPath, AttrValue & v)
+Cursor::Ref Cursor::addChild(const Symbol & attrPath, AttrValue & v)
 {
-    Parent parent = {{shared_from_this(), attrPath}};
-    auto childCursor = std::make_shared<Cursor>(
+    Parent parent = {{*this, attrPath}};
+    auto childCursor = new Cursor(
         root,
         parent,
         v
@@ -284,17 +285,22 @@ std::shared_ptr<Cursor> Cursor::addChild(const Symbol & attrPath, AttrValue & v)
     return childCursor;
 }
 
-std::shared_ptr<Cursor> Cursor::maybeGetAttr(const Symbol & name)
+Cursor::Ref Cursor::maybeGetAttr(const Symbol & name)
 {
     auto rawAttr = root->db->getValue({cachedValue.first, name});
-    if (rawAttr)
-        return std::make_shared<Cursor>(root, std::make_pair(shared_from_this(), name), rawAttr->first, rawAttr->second);
+    if (rawAttr) {
+        Parent parent = {{*this, name}};
+        debug("cache: hit for the attribute %s", cachedValue.first);
+        return new Cursor (
+            root, parent, rawAttr->first,
+            rawAttr->second);
+    }
     return nullptr;
 }
 
-std::shared_ptr<Cursor> Cursor::findAlongAttrPath(const std::vector<Symbol> & attrPath)
+Cursor::Ref Cursor::findAlongAttrPath(const std::vector<Symbol> & attrPath)
 {
-    auto currentCursor = shared_from_this();
+    auto currentCursor = this;
     for (auto & currentAccessor : attrPath) {
         currentCursor = currentCursor->maybeGetAttr(currentAccessor);
         if (!currentCursor)

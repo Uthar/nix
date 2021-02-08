@@ -119,7 +119,7 @@ public:
      * If this is set, then trying to get a value from this attrset will first
      * try to get it from the cache
      */
-    std::shared_ptr<tree_cache::Cursor> evalCache = nullptr;
+    tree_cache::Cursor::Ref evalCache = nullptr;
 
     // Functions needed to distinguish the type
     // These should be removed eventually, by putting the functionality that's
@@ -360,12 +360,12 @@ public:
      * This cache will be used to speed-up some operations like accessing
      * attribute sets elements.
      */
-    void setCache(std::shared_ptr<tree_cache::Cursor>);
+    void setCache(tree_cache::Cursor::Ref);
 
     /*
      * Get the cache associated with this value, if any.
      */
-    std::shared_ptr<tree_cache::Cursor> getCache() const;
+    tree_cache::Cursor::Ref getCache() const;
 };
 
 
