@@ -1820,8 +1820,6 @@ std::vector<std::pair<Path, std::string>> Value::getContext() const
 
 void Value::setCache(std::shared_ptr<tree_cache::Cursor> cache)
 {
-    /* if (internalType == tAttrs) */
-    /*     attrs->evalCache = cache; */
     evalCache = cache;
 }
 
