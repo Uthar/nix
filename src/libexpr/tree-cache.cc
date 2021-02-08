@@ -126,7 +126,7 @@ struct AttrDb
         auto state(_state->lock());
 
         auto queryAttribute(state->queryAttribute.use()(key.first)(key.second));
-        if (!queryAttribute.next()) return {};
+        if (!queryAttribute.next()) return std::nullopt;
 
         return (AttrType) queryAttribute.getInt(0);
     }
