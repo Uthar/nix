@@ -1154,10 +1154,7 @@ tree_cache::AttrValue cachedValueFor(const Value& v)
             };
             break;
         case nAttrs:
-            std::vector<Symbol> attrs;
-            for (auto & attr : *v.attrs)
-                attrs.push_back(attr.name);
-            valueToCache = attrs;
+            valueToCache = tree_cache::attributeSet_t{};
             break;
         };
     return valueToCache;
@@ -1173,7 +1170,7 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
         bool hasCachedRes = false;
         auto cachedValue = resultingCursor->getCachedValue();
         std::visit(overloaded {
-            [&](std::vector<Symbol>) {},
+            [&](tree_cache::attributeSet_t) {},
             [&](tree_cache::placeholder_t) {},
             [&](tree_cache::missing_t) {},
             [&](tree_cache::misc_t) {},
@@ -1201,35 +1198,33 @@ EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const 
 
     const Pos * pos2 = &pos;
     Value * currentValue = &attrs;
+    forceValue(*currentValue, *pos2);
 
     resultingCursor = evalCache;
     for (auto & name : selector) {
         nrLookups++;
         Bindings::iterator j;
-            forceValue(*currentValue);
-            if (resultingCursor) {
-                auto cachedValue = cachedValueFor(*currentValue);
-                resultingCursor = resultingCursor->addChild(name, cachedValue);
-                currentValue->setCache(resultingCursor);
-            }
-            if (currentValue->type() != nAttrs)
-                return {AttrAccessError{
-                    .pos = pos2,
+        if (currentValue->type() != nAttrs)
+            return {AttrAccessError{
+                .pos = pos2,
                     .attrName = name,
                     .illTypedValue = currentValue,
-                }
+            }
             };
-            if ((j = currentValue->attrs->find(name)) == currentValue->attrs->end())
-                return {AttrAccessError { pos2, name }};
+        if ((j = currentValue->attrs->find(name)) == currentValue->attrs->end())
+            return {AttrAccessError { pos2, name }};
         currentValue = j->value;
         pos2 = j->pos;
+        forceValue(*currentValue, *pos2);
+        if (resultingCursor) {
+            auto cachedValue = cachedValueFor(*currentValue);
+            resultingCursor = resultingCursor->addChild(name, cachedValue);
+            currentValue->setCache(resultingCursor);
+        }
         if (countCalls && pos2) attrSelects[*pos2]++;
     }
 
     dest = *currentValue;
-
-    forceValue(dest, ( pos2 != NULL ? *pos2 : pos ) );
-
     return std::nullopt;
 }
 
@@ -1825,15 +1820,16 @@ std::vector<std::pair<Path, std::string>> Value::getContext() const
 
 void Value::setCache(std::shared_ptr<tree_cache::Cursor> cache)
 {
-    if (internalType == tAttrs)
-        attrs->evalCache = cache;
+    /* if (internalType == tAttrs) */
+    /*     attrs->evalCache = cache; */
+    evalCache = cache;
 }
 
 std::shared_ptr<tree_cache::Cursor> Value::getCache() const
 {
-    if (internalType == tAttrs)
-        return attrs->evalCache;
-    return nullptr;
+    /* if (internalType == tAttrs) */
+    /*     return attrs->evalCache; */
+    return evalCache;
 }
 
 string EvalState::forceString(Value & v, PathSet & context, const Pos & pos)
@@ -2226,12 +2222,12 @@ std::shared_ptr<tree_cache::Cache> EvalState::openTreeCache(Hash cacheKey)
     if (auto iter = evalCache.find(cacheKey); iter != evalCache.end())
         return iter->second;
 
-    auto thisCache = std::make_shared<tree_cache::Cache>(
-        evalSettings.useEvalCache && evalSettings.pureEval
-            ? std::optional{std::cref(cacheKey)}
-            : std::nullopt,
-        symbols
-        );
+    if (!(evalSettings.useEvalCache && evalSettings.pureEval))
+        return nullptr;
+    auto thisCache = tree_cache::Cache::tryCreate(
+            cacheKey,
+            symbols
+    );
     evalCache.insert({cacheKey, thisCache});
     return thisCache;
 }

@@ -623,7 +623,7 @@ void callFlake(EvalState & state,
     state.callFunction(*vTmp2, *vRootSubdir, vRes, noPos);
     auto fingerprint = lockedFlake.getFingerprint();
     auto evalCache = state.openTreeCache(fingerprint);
-    auto cacheRoot = evalCache->getRoot();
+    auto cacheRoot = evalCache ? evalCache->getRoot() : nullptr;
     vRes.setCache(cacheRoot);
 }
 

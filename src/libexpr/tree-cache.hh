@@ -39,9 +39,11 @@ private:
 public:
 
     Cache(
-        std::optional<std::reference_wrapper<const Hash>> useCache,
+        const Hash & useCache,
         SymbolTable & symbols
     );
+
+    static std::shared_ptr<Cache> tryCreate(const Hash & useCache, SymbolTable & symbols);
 
     std::shared_ptr<Cursor> getRoot();
 
@@ -53,7 +55,7 @@ public:
 
 enum AttrType {
     Placeholder = 0,
-    FullAttrs = 1,
+    Attrs = 1,
     String = 2,
     Missing = 3,
     Misc = 4,
@@ -65,15 +67,16 @@ struct placeholder_t {};
 struct missing_t {};
 struct misc_t {};
 struct failed_t {};
+struct attributeSet_t {};
 typedef uint64_t AttrId;
 
 typedef std::pair<AttrId, Symbol> AttrKey;
 typedef std::pair<std::string, std::vector<std::pair<Path, std::string>>> string_t;
 
 typedef std::variant<
-    std::vector<Symbol>,
+    attributeSet_t,
     string_t,
-    placeholder_t, // incomplete attribute set?
+    placeholder_t,
     missing_t,
     misc_t,
     failed_t,

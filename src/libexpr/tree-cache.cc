@@ -92,11 +92,10 @@ struct AttrDb
     /**
      * Store a leaf of the tree in the db
      */
-    AttrId setLeaf(
+    AttrId setValue(
         const AttrKey & key,
         const AttrValue & value)
     {
-        assert(!std::holds_alternative<std::vector<Symbol>>(value));
         return doSQLite([&]()
         {
             auto state(_state->lock());
@@ -115,68 +114,31 @@ struct AttrDb
         });
     }
 
-    AttrId setAttrs(
-        AttrKey key,
-        const std::vector<Symbol> & attrs)
-    {
-        return doSQLite([&]()
-        {
-            auto state(_state->lock());
-
-            state->insertAttribute.use()
-                (key.first)
-                (key.second)
-                (AttrType::FullAttrs)
-                (0, false).exec();
-
-            AttrId rowId = state->db.getLastInsertedRowId();
-            assert(rowId);
-
-            for (auto & attr : attrs)
-                state->insertAttribute.use()
-                    (rowId)
-                    (attr)
-                    (AttrType::Placeholder)
-                    (0, false).exec();
-
-            return rowId;
-        });
-    }
-
-    AttrId setValue(
-        const AttrKey & key,
-        const AttrValue & value)
-    {
-        if (auto attrs = std::get_if<std::vector<Symbol>>(&value))
-            return setAttrs(key, *attrs);
-        return setLeaf(key, value);
-    }
-
     AttrId setBool(
         AttrKey key,
         bool b)
     {
-        return setLeaf(key, b);
+        return setValue(key, b);
     }
 
     AttrId setPlaceholder(AttrKey key)
     {
-        return setLeaf(key, placeholder_t{});
+        return setValue(key, placeholder_t{});
     }
 
     AttrId setMissing(AttrKey key)
     {
-        return setLeaf(key, missing_t{});
+        return setValue(key, missing_t{});
     }
 
     AttrId setMisc(AttrKey key)
     {
-        return setLeaf(key, misc_t{});
+        return setValue(key, misc_t{});
     }
 
     AttrId setFailed(AttrKey key)
     {
-        return setLeaf(key, failed_t{});
+        return setValue(key, failed_t{});
     }
 
     std::optional<AttrId> getId(const AttrKey& key)
@@ -196,9 +158,7 @@ struct AttrDb
         return setValue(key, value);
     }
 
-    std::optional<std::pair<AttrId, AttrValue>> getAttr(
-        AttrKey key,
-        SymbolTable & symbols)
+    std::optional<std::pair<AttrId, AttrValue>> getValue(AttrKey key)
     {
         auto state(_state->lock());
 
@@ -211,13 +171,8 @@ struct AttrDb
         switch (type) {
             case AttrType::Placeholder:
                 return {{rowId, placeholder_t()}};
-            case AttrType::FullAttrs: {
-                // FIXME: expensive, should separate this out.
-                std::vector<Symbol> attrs;
-                auto queryAttributes(state->queryAttributes.use()(rowId));
-                while (queryAttributes.next())
-                    attrs.push_back(symbols.create(queryAttributes.getStr(0)));
-                return {{rowId, attrs}};
+            case AttrType::Attrs: {
+                return {{rowId, attributeSet_t()}};
             }
             case AttrType::String: {
                 std::vector<std::pair<Path, std::string>> context;
@@ -240,22 +195,22 @@ struct AttrDb
     }
 };
 
-static std::shared_ptr<AttrDb> makeAttrDb(const Hash & fingerprint)
+Cache::Cache(const Hash & useCache,
+        SymbolTable & symbols)
+    : db(std::make_shared<AttrDb>(useCache))
+    , symbols(symbols)
+    , rootSymbol(symbols.create(""))
+{
+}
+
+std::shared_ptr<Cache> Cache::tryCreate(const Hash & useCache, SymbolTable & symbols)
 {
     try {
-        return std::make_shared<AttrDb>(fingerprint);
+        return std::make_shared<Cache>(useCache, symbols);
     } catch (SQLiteError &) {
         ignoreException();
         return nullptr;
     }
-}
-
-Cache::Cache(std::optional<std::reference_wrapper<const Hash>> useCache,
-        SymbolTable & symbols)
-    : db(useCache ? makeAttrDb(*useCache) : nullptr)
-    , symbols(symbols)
-    , rootSymbol(symbols.create(""))
-{
 }
 
 void Cache::commit()
@@ -273,7 +228,9 @@ void Cache::commit()
 
 std::shared_ptr<Cursor> Cache::getRoot()
 {
-    return std::make_shared<Cursor>(ref(shared_from_this()), std::nullopt, std::vector<Symbol>{});
+    auto sharedThis = ref(shared_from_this());
+    auto rootValue = attributeSet_t{};
+    return std::make_shared<Cursor>(sharedThis, std::nullopt, rootValue);
 }
 
 Cursor::Cursor(
@@ -284,6 +241,7 @@ Cursor::Cursor(
     : root(root), parent(parent)
     , cachedValue({root->db->setIfAbsent(getKey(), value), value})
 {
+    debug("Caching the attribute %s", getKey().second);
 }
 
 Cursor::Cursor(
@@ -312,7 +270,6 @@ AttrValue Cursor::getCachedValue()
 
 void Cursor::setValue(const AttrValue & v)
 {
-    debug("Caching the attribute %s", getKey().second);
     cachedValue = {root->db->setValue(getKey(), v), v};
 }
 
@@ -329,7 +286,7 @@ std::shared_ptr<Cursor> Cursor::addChild(const Symbol & attrPath, AttrValue & v)
 
 std::shared_ptr<Cursor> Cursor::maybeGetAttr(const Symbol & name)
 {
-    auto rawAttr = root->db->getAttr({cachedValue.first, name}, root->symbols);
+    auto rawAttr = root->db->getValue({cachedValue.first, name});
     if (rawAttr)
         return std::make_shared<Cursor>(root, std::make_pair(shared_from_this(), name), rawAttr->first, rawAttr->second);
     return nullptr;
@@ -350,7 +307,7 @@ const RawValue RawValue::fromVariant(const AttrValue & value)
 {
     RawValue res;
     std::visit(overloaded{
-      [&](std::vector<Symbol> x) { res.type = AttrType::FullAttrs; },
+      [&](attributeSet_t x) { res.type = AttrType::Attrs; },
       [&](placeholder_t x) { res.type = AttrType::Placeholder; },
       [&](missing_t x) { res.type = AttrType::Missing; },
       [&](misc_t x) { res.type = AttrType::Misc;  },
@@ -372,7 +329,7 @@ std::string RawValue::serializeContext() const
 {
     std::string res;
     for (auto & elt : context) {
-        res.append(encodeContext(elt.first, elt.second));
+        res.append(encodeContext(elt.second, elt.first));
         res.push_back(' ');
     }
     if (!res.empty())

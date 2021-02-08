@@ -40,12 +40,6 @@ private:
     size_t size_, capacity_;
 
 public:
-    /*
-     * An optional evaluation cache (for flakes in particular).
-     * If this is set, then trying to get a value from this attrset will first
-     * try to get it from the cache
-     */
-    std::shared_ptr<tree_cache::Cursor> evalCache = nullptr;
 
 private:
     Attr attrs[0];
