@@ -1,12 +1,14 @@
 #pragma once
 
 #include "attr-set.hh"
+#include "context.hh"
 #include "value.hh"
 #include "nixexpr.hh"
 #include "symbol-table.hh"
 #include "config.hh"
 #include "hash.hh"
 #include "sqlite.hh"
+#include "tree-cache.hh"
 
 #include <map>
 #include <optional>
@@ -121,7 +123,7 @@ private:
 #endif
     FileEvalCache fileEvalCache;
 
-    std::map<Hash, std::shared_ptr<eval_cache::EvalCache>> evalCache;
+    std::map<Hash, std::shared_ptr<tree_cache::Cache>> evalCache;
 
     SearchPath searchPath;
 
@@ -139,6 +141,7 @@ public:
     ~EvalState();
 
     std::shared_ptr<eval_cache::EvalCache> openCache(Hash, std::function<Value *()> rootLoader);
+    std::shared_ptr<tree_cache::Cache> openTreeCache(Hash);
 
     void addToSearchPath(const string & s);
 

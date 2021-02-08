@@ -45,7 +45,7 @@ public:
      * If this is set, then trying to get a value from this attrset will first
      * try to get it from the cache
      */
-    std::shared_ptr<eval_cache::AttrCursor> evalCache = nullptr;
+    std::shared_ptr<tree_cache::Cursor> evalCache = nullptr;
 
 private:
     Attr attrs[0];

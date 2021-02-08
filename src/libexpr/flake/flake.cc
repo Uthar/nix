@@ -621,7 +621,8 @@ void callFlake(EvalState & state,
     state.callFunction(**vCallFlake, *vLocks, *vTmp1, noPos);
     state.callFunction(*vTmp1, *vRootSrc, *vTmp2, noPos);
     state.callFunction(*vTmp2, *vRootSubdir, vRes, noPos);
-    auto evalCache = openEvalCache(state, std::make_shared<flake::LockedFlake>(lockedFlake));
+    auto fingerprint = lockedFlake.getFingerprint();
+    auto evalCache = state.openTreeCache(fingerprint);
     auto cacheRoot = evalCache->getRoot();
     vRes.setCache(cacheRoot);
 }

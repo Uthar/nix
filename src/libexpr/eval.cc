@@ -1122,51 +1122,96 @@ static string showAttrPath(EvalState & state, Env & env, const AttrPath & attrPa
 
 unsigned long nrLookups = 0;
 
+tree_cache::AttrValue cachedValueFor(const Value& v)
+{
+    tree_cache::AttrValue valueToCache;
+    switch (v.type()) {
+        case nThunk:
+            valueToCache = tree_cache::placeholder_t{};
+            break;
+        case nInt:
+        case nFloat:
+        case nNull:
+        case nList:
+        case nFunction:
+        case nExternal:
+            // XXX: At least some of these should be cached
+            valueToCache = tree_cache::misc_t{};
+            break;
+        case nBool:
+            valueToCache = v.boolean;
+            break;
+        case nString:
+            valueToCache = std::pair<std::string, std::vector<std::pair<Path, std::string>>>{
+                v.string.s,
+                v.getContext()
+            };
+            break;
+        case nPath:
+            valueToCache = std::pair<std::string, std::vector<std::pair<Path, std::string>>>{
+                v.path,
+                {}
+            };
+            break;
+        case nAttrs:
+            std::vector<Symbol> attrs;
+            for (auto & attr : *v.attrs)
+                attrs.push_back(attr.name);
+            valueToCache = attrs;
+            break;
+        };
+    return valueToCache;
+}
+
 EvalState::AttrAccesResult EvalState::getOptionalAttrField(Value & attrs, const std::vector<Symbol> & selector, const Pos & pos, Value & dest)
 {
-    std::shared_ptr<eval_cache::AttrCursor> resultingCursor;
+    std::shared_ptr<tree_cache::Cursor> resultingCursor;
     auto evalCache = attrs.getCache();
     if (evalCache)
         resultingCursor = evalCache->findAlongAttrPath(selector);
     if (resultingCursor) {
         bool hasCachedRes = false;
-        if (auto cachedValue = resultingCursor->getCachedValue()) {
-            std::visit(overloaded {
-                [&](std::vector<Symbol>) {},
-                [&](eval_cache::placeholder_t) {},
-                [&](eval_cache::missing_t) {},
-                [&](eval_cache::misc_t) {},
-                [&](eval_cache::failed_t) {},
-                [&](eval_cache::string_t s) {
-                    nrCacheHits++;
-                    PathSet context;
-                    for (auto & [pathName, outputName] : s.second) {
-                        context.insert("!" + outputName + "!" + pathName);
-                    }
-                    mkString(dest, s.first, context);
-                    hasCachedRes = true;
-                },
-                [&](bool b) {
-                    nrCacheHits++;
-                    dest.mkBool(b);
-                    hasCachedRes = true;
-                },
-            }, *cachedValue);
-        }
+        auto cachedValue = resultingCursor->getCachedValue();
+        std::visit(overloaded {
+            [&](std::vector<Symbol>) {},
+            [&](tree_cache::placeholder_t) {},
+            [&](tree_cache::missing_t) {},
+            [&](tree_cache::misc_t) {},
+            [&](tree_cache::failed_t) {},
+            [&](tree_cache::string_t s) {
+            nrCacheHits++;
+            PathSet context;
+            for (auto & [pathName, outputName] : s.second) {
+            context.insert("!" + outputName + "!" + pathName);
+            }
+            mkString(dest, s.first, context);
+            hasCachedRes = true;
+            },
+            [&](bool b) {
+            nrCacheHits++;
+            dest.mkBool(b);
+            hasCachedRes = true;
+            },
+            },
+        cachedValue);
+
         if(hasCachedRes)
             return std::nullopt;
-        dest = resultingCursor->forceValue();
-        dest.setCache(resultingCursor);
-        return std::nullopt;
     }
 
     const Pos * pos2 = &pos;
     Value * currentValue = &attrs;
 
+    resultingCursor = evalCache;
     for (auto & name : selector) {
         nrLookups++;
         Bindings::iterator j;
             forceValue(*currentValue);
+            if (resultingCursor) {
+                auto cachedValue = cachedValueFor(*currentValue);
+                resultingCursor = resultingCursor->addChild(name, cachedValue);
+                currentValue->setCache(resultingCursor);
+            }
             if (currentValue->type() != nAttrs)
                 return {AttrAccessError{
                     .pos = pos2,
@@ -1760,18 +1805,6 @@ string EvalState::forceString(Value & v, const Pos & pos)
 }
 
 
-/* Decode a context string ‘!<name>!<path>’ into a pair <path,
-   name>. */
-std::pair<string, string> decodeContext(std::string_view s)
-{
-    if (s.at(0) == '!') {
-        size_t index = s.find("!", 1);
-        return {std::string(s.substr(index + 1)), std::string(s.substr(1, index - 1))};
-    } else
-        return {s.at(0) == '/' ? std::string(s) : std::string(s.substr(1)), ""};
-}
-
-
 void copyContext(const Value & v, PathSet & context)
 {
     if (v.string.context)
@@ -1780,7 +1813,7 @@ void copyContext(const Value & v, PathSet & context)
 }
 
 
-std::vector<std::pair<Path, std::string>> Value::getContext()
+std::vector<std::pair<Path, std::string>> Value::getContext() const
 {
     std::vector<std::pair<Path, std::string>> res;
     assert(internalType == tString);
@@ -1790,13 +1823,13 @@ std::vector<std::pair<Path, std::string>> Value::getContext()
     return res;
 }
 
-void Value::setCache(std::shared_ptr<eval_cache::AttrCursor> cache)
+void Value::setCache(std::shared_ptr<tree_cache::Cursor> cache)
 {
     if (internalType == tAttrs)
         attrs->evalCache = cache;
 }
 
-std::shared_ptr<eval_cache::AttrCursor> Value::getCache() const
+std::shared_ptr<tree_cache::Cursor> Value::getCache() const
 {
     if (internalType == tAttrs)
         return attrs->evalCache;
@@ -2188,5 +2221,19 @@ EvalSettings evalSettings;
 
 static GlobalConfig::Register rEvalSettings(&evalSettings);
 
+std::shared_ptr<tree_cache::Cache> EvalState::openTreeCache(Hash cacheKey)
+{
+    if (auto iter = evalCache.find(cacheKey); iter != evalCache.end())
+        return iter->second;
+
+    auto thisCache = std::make_shared<tree_cache::Cache>(
+        evalSettings.useEvalCache && evalSettings.pureEval
+            ? std::optional{std::cref(cacheKey)}
+            : std::nullopt,
+        symbols
+        );
+    evalCache.insert({cacheKey, thisCache});
+    return thisCache;
+}
 
 }

@@ -1,4 +1,4 @@
-#include "eval-cache.hh"
+#include "cached-eval.hh"
 #include "sqlite.hh"
 #include "eval.hh"
 #include "eval-inline.hh"
@@ -644,15 +644,11 @@ StorePath AttrCursor::forceDerivation()
 namespace nix {
 std::shared_ptr<eval_cache::EvalCache> EvalState::openCache(Hash cacheKey, eval_cache::EvalCache::RootLoader rootLoader)
 {
-    if (auto iter = evalCache.find(cacheKey); iter != evalCache.end())
-        return iter->second;
-
     auto thisCache = std::make_shared<eval_cache::EvalCache>(
         evalSettings.useEvalCache && evalSettings.pureEval
             ? std::optional{std::cref(cacheKey)}
             : std::nullopt,
         *this, rootLoader);
-    evalCache.insert({cacheKey, thisCache});
     return thisCache;
 }
 

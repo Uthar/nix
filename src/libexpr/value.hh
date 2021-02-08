@@ -1,14 +1,11 @@
 #pragma once
 
 #include "symbol-table.hh"
+#include "tree-cache.hh"
 
 #if HAVE_BOEHMGC
 #include <gc/gc_allocator.h>
 #endif
-
-namespace nix::eval_cache {
-    class AttrCursor;
-}
 
 namespace nix {
 
@@ -350,19 +347,19 @@ public:
        non-trivial. */
     bool isTrivial() const;
 
-    std::vector<std::pair<Path, std::string>> getContext();
+    std::vector<std::pair<Path, std::string>> getContext() const;
 
     /*
      * Set the associated cache view for this value.
      * This cache will be used to speed-up some operations like accessing
      * attribute sets elements.
      */
-    void setCache(std::shared_ptr<eval_cache::AttrCursor>);
+    void setCache(std::shared_ptr<tree_cache::Cursor>);
 
     /*
      * Get the cache associated with this value, if any.
      */
-    std::shared_ptr<eval_cache::AttrCursor> getCache() const;
+    std::shared_ptr<tree_cache::Cursor> getCache() const;
 };
 
 
