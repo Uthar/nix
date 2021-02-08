@@ -1825,8 +1825,6 @@ void Value::setCache(std::shared_ptr<tree_cache::Cursor> cache)
 
 std::shared_ptr<tree_cache::Cursor> Value::getCache() const
 {
-    /* if (internalType == tAttrs) */
-    /*     return attrs->evalCache; */
     return evalCache;
 }
 
