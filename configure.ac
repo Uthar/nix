@@ -101,12 +101,21 @@ else
 fi
 rm -f tmp_link tmp_link2
 
+AC_CHECK_HEADERS([lowdown.h], [true],
+  [AC_MSG_ERROR([Nix requires lowdown.  See https://kristaps.bsd.lv/lowdown/.])],
+[AC_INCLUDES_DEFAULT
+ #include <sys/queue.h>
+ ])
 
 # Check for <locale>.
 AC_LANG_PUSH(C++)
 AC_CHECK_HEADERS([locale])
 AC_LANG_POP(C++)
 
+AC_LANG_PUSH(C++)
+AC_CHECK_HEADERS([nlohmann/json.hpp], [true],
+  [AC_MSG_ERROR([Nix requires nlohmann/json.hpp. See https://github.com/nlohmann/json.])])
+AC_LANG_POP(C++)
 
 AC_DEFUN([NEED_PROG],
 [
@@ -118,7 +127,7 @@ fi
 
 NEED_PROG(bash, bash)
 AC_PATH_PROG(flex, flex, false)
-AC_PATH_PROG(bison, bison, false)
+NEED_PROG(bison, bison)
 AC_PATH_PROG(dot, dot)
 AC_PATH_PROG(lsof, lsof, lsof)
 NEED_PROG(jq, jq)
@@ -171,7 +180,6 @@ fi
 # used by S3BinaryCacheStore.
 PKG_CHECK_MODULES([OPENSSL], [libcrypto], [CXXFLAGS="$OPENSSL_CFLAGS $CXXFLAGS"])
 
-
 # Look for libbz2, a required dependency.
 AC_CHECK_LIB([bz2], [BZ2_bzWriteOpen], [true],
   [AC_MSG_ERROR([Nix requires libbz2, which is part of bzip2.  See https://sourceware.org/bzip2/.])])
@@ -191,16 +199,12 @@ PKG_CHECK_MODULES([SQLITE3], [sqlite3 >= 3.6.19], [CXXFLAGS="$SQLITE3_CFLAGS $CX
 PKG_CHECK_MODULES([LIBCURL], [libcurl], [CXXFLAGS="$LIBCURL_CFLAGS $CXXFLAGS"])
 
 # Look for editline, a required dependency.
-# The the libeditline.pc file was added only in libeditline >= 1.15.2,
-# see https://github.com/troglobit/editline/commit/0a8f2ef4203c3a4a4726b9dd1336869cd0da8607,
-# but e.g. Ubuntu 16.04 has an older version, so we fall back to searching for
-# editline.h when the pkg-config approach fails.
-PKG_CHECK_MODULES([EDITLINE], [libeditline], [CXXFLAGS="$EDITLINE_CFLAGS $CXXFLAGS"], [
-  AC_CHECK_HEADERS([editline.h], [true],
-    [AC_MSG_ERROR([Nix requires libeditline; it was found neither via pkg-config nor its normal header.])])
-  AC_SEARCH_LIBS([readline read_history], [editline], [],
-    [AC_MSG_ERROR([Nix requires libeditline; it was not found via pkg-config, but via its header, but required functions do not work. Maybe it is too old? >= 1.14 is required.])])
-])
+AC_CHECK_HEADERS([editline.h], [true],
+  [AC_MSG_ERROR([Nix requires readline.  See https://simtk.org/projects/libeditline.])])
+AC_CHECK_LIB([editline], [readline], [true],
+  [AC_MSG_ERROR([Nix requires readline.  See https://simtk.org/projects/libeditline.])])
+AC_CHECK_LIB([editline], [read_history], [true],
+  [AC_MSG_ERROR([Nix requires readline.  See https://simtk.org/projects/libeditline.])])
 
 # Look for libsodium, an optional dependency.
 PKG_CHECK_MODULES([SODIUM], [libsodium], [CXXFLAGS="$SODIUM_CFLAGS $CXXFLAGS"])
