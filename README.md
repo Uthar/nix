@@ -23,6 +23,13 @@ Information on additional installation methods is available on the [Nix download
 See our [Hacking guide](https://hydra.nixos.org/job/nix/master/build.x86_64-linux/latest/download-by-type/doc/manual/contributing/hacking.html) in our manual for instruction on how to
 build nix from source with nix-build or how to get a development environment.
 
+Or just build by running these commands:
+```console
+./bootstrap.sh
+./configure
+make
+```
+
 ## Additional Resources
 
 - [Nix manual](https://nixos.org/nix/manual)
