@@ -7,6 +7,10 @@
 
 #include <sys/time.h>
 
+#if __FreeBSD__
+#include <sys/wait.h>
+#endif
+
 using namespace std::string_literals;
 
 namespace nix::fetchers {

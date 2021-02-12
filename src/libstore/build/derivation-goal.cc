@@ -55,6 +55,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#if __FreeBSD__
+#include <sys/wait.h>
+#endif
+
 #include <pwd.h>
 #include <grp.h>
 
